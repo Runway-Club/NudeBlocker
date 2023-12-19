@@ -150,6 +150,11 @@ async function  loadModel() {
 }
 console.log("Model loading");
 loadModel()
+const wrapAsyncFunction = (listener) => (request, sender, sendResponse) => {
+    // the listener(...) might return a non-promise result (not an async function), so we wrap it with Promise.resolve()
+    Promise.resolve(listener(request, sender)).then(sendResponse);
+    return true; // return true to indicate you want to send a response asynchronously
+};
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
     if (reason === 'install') {
@@ -159,20 +164,27 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
     }
 });
 
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    console.log(message.images);
-    if (message.images !== undefined) {
-        let result = [];
-        for (let i=0;i<message.images.length;i++) {
-            let img = message.images[i];
-            img.data = new ImageData(new Uint8ClampedArray(img.data.data), img.data.width, img.data.height);
-            console.log("Process: " + img.src);
-            let res = await runDetection(img)
-            if (res) {
-                result.push({url: img.src, res: res});
-            }
-        }
-        console.log(result);
-        sendResponse(result)
+chrome.runtime.onMessage.addListener( wrapAsyncFunction(async (request, sender) => {
+    console.log(request.images);
+    let results = [];
+    if (request.images !== undefined) {
+
+       for (let i=0;i< request.images.length;i++) {
+
+           try {
+               let img = request.images[i];
+               img.data = new ImageData(new Uint8ClampedArray(img.data.data), img.data.width, img.data.height);
+               console.log("Process: " + img.src);
+               let res = await runDetection(img);
+               if (res) {
+                   results.push({url: img.src, res: res});
+               }
+           }
+           catch (e) {
+               console.log(e);
+               results.push({url:request.images[i].src,res:{}});
+           }
+       }
     }
-});
+    return results;
+}));
