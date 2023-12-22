@@ -25,12 +25,20 @@ const api = "https://nsfw-filter.app.runwayclub.dev/?url=";
             // object to array
             const data = Array.from(imageData.data);
             img.src = "https://cdn.pixabay.com/animation/2023/03/20/02/45/02-45-27-186_512.gif";
-            const res = await fetch(api + encodeURIComponent(img.src), {
-                method: 'GET'});
-            const bodyJson = await res.json();
-            console.log(bodyJson);
-            if (bodyJson["score"] > 0.2) {
-                src.img = "https://img.freepik.com/premium-vector/blurred-mosaic-censor-blur-effect-texture_540598-66.jpg";
+            let bodyJson = {};
+            let cachedItem = window.localStorage.getItem(originalUrls[i]);
+            if (cachedItem == null) {
+                const res = await fetch(api + encodeURIComponent(img.src), {
+                    method: 'GET'
+                });
+                bodyJson = await res.json();
+                console.log(bodyJson);
+                window.localStorage.setItem(originalUrls[i], bodyJson["score"]);
+            } else {
+                bodyJson["score"] = cachedItem;
+            }
+            if (bodyJson["score"] > 0.1) {
+                img.src = "https://img.freepik.com/premium-vector/blurred-mosaic-censor-blur-effect-texture_540598-66.jpg";
             } else {
                 img.src = originalUrls[i];
             }
